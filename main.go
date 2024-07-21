@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"math/rand/v2"
+	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Board [9][9]int
@@ -10,6 +15,8 @@ type Board [9][9]int
 type Sudoku struct {
 	completeBoard Board
 	playingBoard  Board
+	cursorX       int
+	cursorY       int
 }
 
 func exists[K comparable](arr []K, value K) bool {
@@ -188,10 +195,93 @@ func initGame() Sudoku {
 	return game
 }
 
-func main() {
-	game := initGame()
-	game.playingBoard.show()
-	game.solve()
-	game.playingBoard.show()
+func (s *Sudoku) start() {
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	word := scanner.Text()
+	fmt.Println(word)
+}
 
+func (m Sudoku) Init() tea.Cmd {
+	return tick()
+}
+
+func tick() tea.Cmd {
+	return tea.SetWindowTitle("Sudoku")
+}
+
+func (m Sudoku) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "h", "left":
+			if m.cursorX > 0 {
+				m.cursorX--
+			}
+		case "l", "right":
+			if m.cursorX < 8 {
+				m.cursorX++
+			}
+		case "j", "down":
+			if m.cursorY < 8 {
+				m.cursorY++
+			}
+		case "k", "up":
+			if m.cursorY > 0 {
+				m.cursorY--
+			}
+		}
+
+	}
+	return m, nil
+}
+
+var base = lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1)
+var style = base.Foreground(lipgloss.Color("#f5e0dc"))
+var borderStyle = style.Foreground(lipgloss.Color("#89b4fa"))
+var border = lipgloss.NewStyle().BorderForeground(lipgloss.Color("#89b4fa"))
+
+func (m Sudoku) View() string {
+	s := ""
+	for r := range 9 {
+		for c := range 9 {
+			if r%3 == 0 && r != 0 && c == 0 {
+				// s += style.Render("------------------------\n")
+				s += borderStyle.Render("─────────┼───────────┼─────────")
+				s += "\n"
+				// s += "───────┼────────┼───────\n"
+			}
+			if c%3 == 0 && c != 0 {
+				s += borderStyle.Render("│")
+			}
+			if r == m.cursorY && c == m.cursorX {
+				if m.playingBoard[r][c] == 0 {
+					s += style.Background(lipgloss.Color("#bac2de")).Render(" ")
+				} else {
+					s += style.Foreground(lipgloss.Color("#313244")).Faint(true).Background(lipgloss.Color("#bac2de")).Render(fmt.Sprintf("%v", m.playingBoard[r][c]))
+				}
+			} else {
+				if m.playingBoard[r][c] == 0 {
+					s += style.Render(" ")
+				} else {
+					s += style.Render(fmt.Sprintf("%v", m.playingBoard[r][c]))
+				}
+			}
+		}
+		if r != 8 {
+			s += "\n"
+		}
+	}
+	width := lipgloss.Width(s)
+	s = border.BorderStyle(lipgloss.NormalBorder()).Render(s)
+	return lipgloss.JoinVertical(lipgloss.Center, "Sudoku", lipgloss.NewStyle().Width(width*3).Align(lipgloss.Center).Render(s))
+}
+func main() {
+	p := tea.NewProgram(initGame())
+	if _, err := p.Run(); err != nil {
+		fmt.Println("There is an error")
+		os.Exit(1)
+	}
 }
