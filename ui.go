@@ -8,11 +8,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	TEXT         = lipgloss.Color("#313244")
+	NEUTRAL      = lipgloss.Color("#bac2de")
+	VALID        = lipgloss.Color("#a6e3a1")
+	INVALID      = lipgloss.Color("#eb6f92")
+	NOT_EDITABLE = lipgloss.Color("#ebbcba")
+	BORDER       = lipgloss.Color("#89b4fa")
+)
+
+var base = lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1).Foreground(TEXT).BorderForeground(BORDER)
+var borderStyle = base.Foreground(BORDER)
+
 type model struct {
 	game    *Game
 	playing bool
 	loaded  bool
 	spinner spinner.Model
+	b0t     *bot
 }
 
 func (m model) Init() tea.Cmd {
@@ -38,7 +51,8 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "a":
-			return m, nil
+			m.b0t = initBot(m.game.playingBoard, false)
+			return m, m.b0t.move()
 		default:
 			m.game.handleMove(msg.String())
 		}
@@ -47,20 +61,28 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
 		}
+	case nextBotMove:
+		if m.b0t.ip <= len(m.b0t.solution) {
+			mv := m.b0t.solution[m.b0t.ip]
+			m.game.handleMove(mv)
+			m.b0t.ip++
+			return m, m.b0t.move()
+		}
+
+	case fillBoardCmd:
+		for _, mv := range m.b0t.solution {
+			if mv.value == 0 {
+				continue
+			}
+			m.game.playingBoard[mv.r][mv.c].value = mv.value
+		}
+	}
+
+	if m.game.checkWin() {
+		return m, tea.Quit
 	}
 
 	return m, nil
-}
-
-func gameView(m model) string {
-	if !m.game.loaded {
-		return m.spinner.View()
-	}
-	board := m.game.playingBoard.View(m.game.r, m.game.c)
-	width := lipgloss.Width(board)
-	board = borderStyle.UnsetPadding().BorderStyle(lipgloss.NormalBorder()).Render(board)
-	board = lipgloss.NewStyle().Width(width * 3).Align(lipgloss.Center).Render(board)
-	return lipgloss.JoinVertical(lipgloss.Center, "Sudoku", board, "\n\n")
 }
 
 func (m model) View() string {
@@ -69,18 +91,16 @@ func (m model) View() string {
 	}
 	return ""
 }
-
-const (
-	TEXT         = lipgloss.Color("#313244")
-	NEUTRAL      = lipgloss.Color("#bac2de")
-	VALID        = lipgloss.Color("#a6e3a1")
-	INVALID      = lipgloss.Color("#eb6f92")
-	NOT_EDITABLE = lipgloss.Color("#ebbcba")
-	BORDER       = lipgloss.Color("#89b4fa")
-)
-
-var base = lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1).Foreground(TEXT).BorderForeground(BORDER)
-var borderStyle = base.Foreground(BORDER)
+func gameView(m model) string {
+	if !m.game.loaded {
+		return lipgloss.JoinHorizontal(lipgloss.Center, "Loading ", m.spinner.View(), "\n\n")
+	}
+	board := m.game.playingBoard.View(m.game.r, m.game.c)
+	width := lipgloss.Width(board)
+	board = borderStyle.UnsetPadding().BorderStyle(lipgloss.NormalBorder()).Render(board)
+	board = lipgloss.NewStyle().Width(width * 3).Align(lipgloss.Center).Render(board)
+	return lipgloss.JoinVertical(lipgloss.Center, "Sudoku", board, "\n\n")
+}
 
 func (b Board) View(r, c int) string {
 	s := ""

@@ -39,3 +39,14 @@ func isSame(first, second *Board) bool {
 	}
 	return true
 }
+
+func (game *Game) checkWin() bool {
+	for r := range 9 {
+		for c := range 9 {
+			if game.playingBoard[r][c].value == 0 {
+				return false
+			}
+		}
+	}
+	return game.playingBoard.Valid()
+}

@@ -178,14 +178,6 @@ func (board Board) hasOtherSolution(sol *Board) bool {
 }
 
 func (board Board) copy() Board {
-	// b := Board{}
-	// for r := range 9 {
-	// 	for c := range 9 {
-	// 		b[r][c].value = board[r][c].value
-	// 		b[r][c].editable = board[r][c].editable
-	// 	}
-	// }
-	// return b
 	return board
 }
 
@@ -212,5 +204,5 @@ func (b *Board) show() {
 func newGame(g *Game) {
 	g.solvedBoard.fill()
 	g.playingBoard = g.solvedBoard.copy()
-	g.playingBoard.removeElements(55)
+	g.playingBoard.removeElements(53)
 }

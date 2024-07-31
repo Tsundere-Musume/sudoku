@@ -10,28 +10,36 @@ func (game *Game) moveTo(r, c int) {
 	game.c = c
 }
 
-func (game *Game) handleMove(key string) {
-	switch key {
-	case "h", "left":
-		game.c--
-	case "l", "right":
-		game.c++
-	case "j", "down":
-		game.r++
-	case "k", "up":
-		game.r--
-	case " ":
-		game.moveTo(oneDto2((twoDto1(game.r, game.c) + 1) % 81))
-	default:
-		num, err := strconv.Atoi(key)
-		if err != nil || num > 9 || num < 1 {
-			break
+func (game *Game) handleMove(key any) {
+	switch key.(type) {
+	case string:
+		switch key {
+		case "h", "left":
+			game.c--
+		case "l", "right":
+			game.c++
+		case "j", "down":
+			game.r++
+		case "k", "up":
+			game.r--
+		case " ":
+			game.moveTo(oneDto2((twoDto1(game.r, game.c) + 1) % 81))
+		default:
+			num, err := strconv.Atoi(key.(string))
+			if err != nil || num > 9 || num < 1 {
+				break
+			}
+			if game.playingBoard[game.r][game.c].editable {
+				game.playingBoard[game.r][game.c].value = num
+			}
+			return
 		}
-		if game.playingBoard[game.r][game.c].editable {
-			game.playingBoard[game.r][game.c].value = num
-		}
-		return
+		game.r = (game.r + 9) % 9
+		game.c = (game.c + 9) % 9
+	case move:
+		mv := key.(move)
+		game.r = mv.r
+		game.c = mv.c
+		game.playingBoard[game.r][game.c].value = mv.value
 	}
-	game.r = (game.r + 9) % 9
-	game.c = (game.c + 9) % 9
 }
