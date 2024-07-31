@@ -1,5 +1,8 @@
 package main
 
+// TODO: FIX BOARD GENERATION
+// TODO: FIX BOT FREEZE IF EDITABLE CELLS HAVE INVALID VALUE
+
 import (
 	"fmt"
 	"math/rand/v2"
@@ -30,6 +33,7 @@ type Sudoku struct {
 	timer         stopwatch.Model
 	started       bool
 	bot           *Bot
+	noTimeout     bool
 }
 
 type Bot struct {
@@ -174,32 +178,38 @@ func (s *Sudoku) getSolution() []Instruction {
 	return solution
 }
 
-// TODO: complete this version
-// func (s *Sudoku) rmElements(n int) {
-// 	var backtrack func(int, int, int) bool
-// 	backtrack = func(r int, c int, n int) bool {
-// 		if n == 0 {
-// 			return true
-// 		}
-// 		for {
-// 			num := s.playingBoard[r][c].value
-// 			for num == 0 && s.playingBoard[r][c].editable {
-// 				r, c = rand.IntN(9), rand.IntN(9)
-// 				num = s.playingBoard[r][c].value
-// 			}
-// 			s.playingBoard[r][c].value = 0
-// 			s.playingBoard[r][c].editable = true
-// 			if s.hasUniqueSolution() && backtrack(r, c, n-1) {
-// 				return true
-// 			}
-// 			s.playingBoard[r][c].value = num
-// 			s.playingBoard[r][c].editable = false
-// 			return backtrack(r, c, n)
-// 		}
-// 	}
-//
-// 	backtrack(0, 0, n)
-// }
+func twoDto1(r, c int) int {
+	return (r * 9) + c
+}
+func (s *Sudoku) rmElements(n int) {
+	var backtrack func(int, int, int) bool
+	backtrack = func(r int, c int, count int) bool {
+		if count == n {
+			return true
+		}
+		tried := []int{}
+		for newR, newC := rand.IntN(9), rand.IntN(9); len(tried) < 81; newR, newC = rand.IntN(9), rand.IntN(9) {
+			num := s.playingBoard[r][c].value
+			if num != 0 {
+				s.playingBoard[r][c].value = 0
+				s.playingBoard[r][c].editable = true
+				if s.has() && backtrack(newR, newC, count+1) {
+					return true
+				}
+				s.playingBoard[r][c].value = num
+				s.playingBoard[r][c].editable = false
+			}
+			if n := twoDto1(r, c); !exists(tried, n) {
+				tried = append(tried, twoDto1(r, c))
+			}
+			r = newR
+			c = newC
+		}
+		return false
+	}
+
+	fmt.Println("solvabel", backtrack(rand.IntN(9), rand.IntN(9), 0))
+}
 
 func (s *Sudoku) removeElements(n int) {
 	for i := 0; i < n; {
@@ -210,13 +220,54 @@ func (s *Sudoku) removeElements(n int) {
 		}
 		s.playingBoard[r][c].value = 0
 		s.playingBoard[r][c].editable = true
-		if s.hasUniqueSolution() {
+		if s.has() {
 			i++
 			continue
 		}
 		s.playingBoard[r][c].value = num
 		s.playingBoard[r][c].editable = false
 	}
+}
+func (s *Sudoku) has() bool {
+	var backtrack func(int, int) bool
+	backtrack = func(r int, c int) bool {
+		if r == 9 {
+			if s.isSame() {
+				return false
+			}
+			return true
+		}
+		newR := r
+		newC := c
+		if c == 8 {
+			newR++
+			newC = 0
+		} else {
+			newC++
+		}
+
+		if s.playingBoard[r][c].value != 0 {
+			return backtrack(newR, newC)
+		}
+		tried := make([]int, 0, 9)
+		for num := rand.IntN(9) + 1; len(tried) < 9; num = rand.IntN(9) + 1 {
+			// r := r
+			// c := c
+			if exists(tried, num) {
+				continue
+			}
+			tried = append(tried, num)
+			s.playingBoard[r][c].value = num
+			if s.playingBoard.isValid() && backtrack(newR, newC) {
+				s.playingBoard[r][c].value = 0
+				return true
+			}
+			s.playingBoard[r][c].value = 0
+		}
+		return false
+	}
+	a := backtrack(0, 0)
+	return !a
 }
 func (s *Sudoku) hasUniqueSolution() bool {
 	var backtrack func(int, int) bool
@@ -235,8 +286,7 @@ func (s *Sudoku) hasUniqueSolution() bool {
 		if (!s.playingBoard[r][c].editable) || (s.playingBoard[r][c].value != 0) {
 			return backtrack(newR, newC)
 		}
-		tried := []int{}
-		tried = append(tried, s.completeBoard[r][c].value)
+		tried := []int{s.completeBoard[r][c].value}
 		for num := rand.IntN(9) + 1; len(tried) < 9; num = rand.IntN(9) + 1 {
 			if exists(tried, num) {
 				continue
@@ -275,10 +325,14 @@ func (b *Board) show() {
 
 func initGame() Sudoku {
 	game := Sudoku{
-		timer: stopwatch.NewWithInterval(time.Millisecond),
+		timer:     stopwatch.NewWithInterval(time.Millisecond),
+		noTimeout: true,
 	}
 	game.solve()
-	game.removeElements(5)
+	// game.removeElements(40)
+	game.rmElements(53)
+	fmt.Println("Unique", game.has())
+	// time.Sleep(time.Second * 1)
 	game.completeBoard.show()
 	// game.playingBoard.show()
 	return game
@@ -290,9 +344,22 @@ func (m Sudoku) Init() tea.Cmd {
 
 type BotMsg struct{}
 
+func (m Sudoku) isSame() bool {
+	for r := range 9 {
+		for c := range 9 {
+			if m.playingBoard[r][c].value != m.completeBoard[r][c].value {
+				return false
+			}
+		}
+	}
+	return true
+}
 func (m Sudoku) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.bot != nil && msg.String() != "q" && msg.String() != "ctrl+c" {
+			break
+		}
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -314,6 +381,12 @@ func (m Sudoku) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "a":
 			a := m.getSolution()
+			if m.noTimeout {
+				for _, ins := range a {
+					m.playingBoard[ins.Coords.r][ins.Coords.c].value = ins.value
+				}
+				break
+			}
 			m.bot = &Bot{
 				botInstructions: a,
 				board:           m.playingBoard,
@@ -344,6 +417,11 @@ func (m Sudoku) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.checkWin() {
+		fmt.Println()
+		fmt.Println()
+		fmt.Println(m.isSame())
+		fmt.Println()
+		fmt.Println()
 		return m, tea.Quit
 	}
 	if !m.started {
@@ -403,6 +481,7 @@ func (m Sudoku) View() string {
 	s = border.BorderStyle(lipgloss.NormalBorder()).Render(s)
 	return lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.JoinVertical(lipgloss.Center, "Sudoku", lipgloss.NewStyle().Width(width*3).Align(lipgloss.Center).Render(s), "\n\n"), m.timer.View())
 }
+
 func main() {
 	p := tea.NewProgram(initGame())
 	if _, err := p.Run(); err != nil {
