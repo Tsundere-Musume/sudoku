@@ -3,23 +3,24 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/stopwatch"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// TODO: FIX BOT FREEZE IF EDITABLE CELLS HAVE INVALID VALUE
+// INFO: FIX BOT FREEZE IF EDITABLE CELLS HAVE INVALID VALUE:: FIXED THIS BUT DON'T LIKE THE METHOD USED
 // TODO: ADD DEBUG
 
 func main() {
-	game := new(Game)
+	game := &Game{
+		loaded: make(chan struct{}, 1),
+		timer:  stopwatch.NewWithInterval(time.Millisecond),
+	}
 	go func() {
-		var mu sync.Mutex
 		newGame(game)
-		mu.Lock() // dont know if this is required
-		game.loaded = true
-		mu.Unlock()
+		game.loaded <- struct{}{}
 	}()
 
 	s := spinner.New()
@@ -28,11 +29,10 @@ func main() {
 		game:    game,
 		playing: true,
 		spinner: s,
-		loaded:  true,
 	}
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		fmt.Println("There is an error")
-		os.Exit(1)
 	}
+	os.Exit(0)
 }

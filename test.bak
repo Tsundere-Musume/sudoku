@@ -9,11 +9,10 @@ import (
 
 type Game struct {
 	playingBoard Board
-	problemBoard Board //WARN: don't like how there are three boards for one game
 	solvedBoard  Board
 	timer        stopwatch.Model
 	started      bool
-	loaded       chan struct{}
+	loaded       bool
 	r, c         int
 }
 
@@ -54,9 +53,14 @@ func (board *Board) fill() {
 		if r == 9 {
 			return true
 		}
-
+		c1, r1 := c, r
+		if c == 8 {
+			r1, c1 = r+1, 0
+		} else {
+			r1, c1 = r, c+1
+		}
 		if board[r][c].value != 0 {
-			return backtrack(nextPos(r, c))
+			return backtrack(c1, r1)
 		}
 
 		tried := []int{}
@@ -65,7 +69,7 @@ func (board *Board) fill() {
 			if !exists(tried, num) {
 				tried = append(tried, num)
 				board[r][c].value = num
-				if board.Valid() && backtrack(nextPos(r, c)) {
+				if board.Valid() && backtrack(r1, c1) {
 					return true
 				}
 				board[r][c].value = 0
@@ -88,8 +92,14 @@ func (board Board) getSolution() []move {
 			return true
 		}
 
+		c1, r1 := c, r
+		if c == 8 {
+			r1, c1 = r+1, 0
+		} else {
+			r1, c1 = r, c+1
+		}
 		if !board[r][c].editable {
-			return backtrack(nextPos(r, c))
+			return backtrack(r1, c1)
 		}
 
 		tried := []int{}
@@ -100,7 +110,8 @@ func (board Board) getSolution() []move {
 				board[r][c].value = num
 				solution = append(solution, move{r: r, c: c, value: num})
 				tried = append(tried, num)
-				if board.Valid() && backtrack(nextPos(r, c)) {
+				//TODO: ignore editable cells
+				if board.Valid() && backtrack(r1, c1) {
 					return true
 				}
 				board[r][c].value = original
@@ -115,7 +126,7 @@ func (board Board) getSolution() []move {
 
 // board has to be fully filled with valid elements
 func (board *Board) removeElements(n int) {
-	//TODO: add checks, edit: dont remember which checks I was talking in this comment
+	//TODO: add checks
 	original := board.copy()
 	var backtrack func(int, int, int) bool
 	backtrack = func(r int, c int, count int) bool {
@@ -150,11 +161,20 @@ func (board Board) hasOtherSolution(sol *Board) bool {
 	var backtrack func(int, int) bool
 	backtrack = func(r int, c int) bool {
 		if r == 9 {
-			return !isSame(&board, sol)
+			if isSame(&board, sol) {
+				return false
+			}
+			return true
 		}
 
+		c1, r1 := c, r
+		if c == 8 {
+			r1, c1 = r+1, 0
+		} else {
+			r1, c1 = r, c+1
+		}
 		if !board[r][c].editable {
-			return backtrack(nextPos(r, c))
+			return backtrack(r1, c1)
 		}
 
 		tried := []int{}
@@ -163,7 +183,7 @@ func (board Board) hasOtherSolution(sol *Board) bool {
 			if !exists(tried, num) {
 				tried = append(tried, num)
 				board[r][c].value = num
-				if board.Valid() && backtrack(nextPos(r, c)) {
+				if board.Valid() && backtrack(r1, c1) {
 					return true
 				}
 				board[r][c].value = 0
@@ -201,6 +221,5 @@ func (b *Board) show() {
 func newGame(g *Game) {
 	g.solvedBoard.fill()
 	g.playingBoard = g.solvedBoard.copy()
-	g.playingBoard.removeElements(20)
-	g.problemBoard = g.playingBoard.copy()
+	g.playingBoard.removeElements(53)
 }

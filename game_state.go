@@ -11,7 +11,7 @@ func (game *Game) moveTo(r, c int) {
 }
 
 func (game *Game) handleMove(key any) {
-	switch key.(type) {
+	switch key := key.(type) {
 	case string:
 		switch key {
 		case "h", "left":
@@ -25,7 +25,7 @@ func (game *Game) handleMove(key any) {
 		case " ":
 			game.moveTo(oneDto2((twoDto1(game.r, game.c) + 1) % 81))
 		default:
-			num, err := strconv.Atoi(key.(string))
+			num, err := strconv.Atoi(key)
 			if err != nil || num > 9 || num < 1 {
 				break
 			}
@@ -37,9 +37,8 @@ func (game *Game) handleMove(key any) {
 		game.r = (game.r + 9) % 9
 		game.c = (game.c + 9) % 9
 	case move:
-		mv := key.(move)
-		game.r = mv.r
-		game.c = mv.c
-		game.playingBoard[game.r][game.c].value = mv.value
+		game.r = key.r
+		game.c = key.c
+		game.playingBoard[game.r][game.c].value = key.value
 	}
 }
