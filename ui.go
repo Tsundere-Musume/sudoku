@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/stopwatch"
@@ -32,6 +33,8 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		k := msg.String()
 		if k == "q" || k == "ctrl+c" {
@@ -40,9 +43,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k == "tab" {
 			m.currWindow = (m.currWindow + 1) % tabCount
 		}
+
+		if k == "r" && m.loaded && m.currWindow == tabGame {
+			m.loaded = false
+			game := &Game{
+				loaded:  make(chan struct{}, 1),
+				timer:   stopwatch.NewWithInterval(time.Millisecond),
+				options: &settingsModel{settings: m.game.options.settings},
+			}
+			m.game = game
+			go func() {
+				newGame(game)
+				game.loaded <- struct{}{}
+			}()
+			s := spinner.New()
+			s.Spinner = spinner.Dot
+			m.spinner = s
+			cmds = append(cmds, m.spinner.Tick)
+		}
 	}
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
 	mod, cmd := updateGame(msg, m)
 	cmds = append(cmds, cmd)
 	m = mod.(model)
@@ -67,12 +86,14 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			m.b0t = initBot(m.game.problemBoard, true)
 			// return m, m.b0t.move()
 			cmds = append(cmds, m.b0t.move())
+
 		default:
 			m.game.handleMove(msg.String())
 		}
 	case spinner.TickMsg:
 		select {
 		case <-m.game.loaded:
+			m.b0t = nil
 			m.loaded = true
 			cmds = append(cmds, m.game.timer.Init(), m.game.timer.Start())
 		default:
@@ -85,7 +106,7 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case nextBotMove:
-		if m.b0t.ip < len(m.b0t.solution) {
+		if m.b0t.ip < len(m.b0t.solution) && m.loaded {
 			mv := m.b0t.solution[m.b0t.ip]
 			m.game.handleMove(mv)
 			m.b0t.ip++
@@ -95,6 +116,9 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 
 	case fillBoardCmd:
 		for _, mv := range m.b0t.solution {
+			if !m.loaded {
+				break
+			}
 			if mv.value == 0 {
 				continue
 			}
@@ -153,7 +177,15 @@ func gameView(m model) string {
 	}
 	board := m.game.playingBoard.View(m.game.r, m.game.c)
 	board = lipgloss.JoinVertical(lipgloss.Center, "\n\nSudoku", board, "\n\n")
-	return board
+	dbugWindow := ""
+	if m.game.options.settings.Debug {
+		dbug := strings.Builder{}
+		dbug.WriteString(fmt.Sprintf("Time elapsed: %v\n\n", m.game.timer.View()))
+		dbug.WriteString(fmt.Sprintf("Board valid: %v\n\n", m.game.playingBoard.Valid()))
+		dbug.WriteString(fmt.Sprintf("Board same: %v\n\n", isSame(&m.game.playingBoard, &m.game.solvedBoard)))
+		dbugWindow = borderStyle.Width(lipgloss.Width(board)).Render(dbug.String())
+	}
+	return lipgloss.JoinVertical(lipgloss.Center, board, dbugWindow)
 }
 
 func (b Board) View(r, c int) string {

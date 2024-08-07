@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/charmbracelet/bubbles/stopwatch"
@@ -176,26 +175,6 @@ func (board Board) hasOtherSolution(sol *Board) bool {
 
 func (board Board) copy() Board {
 	return board
-}
-
-func (b *Board) show() {
-	for r, row := range b {
-		for c, cell := range row {
-			if r%3 == 0 && r != 0 && c == 0 {
-				fmt.Println("---------------------")
-			}
-			if c%3 == 0 && c != 0 {
-				fmt.Print("| ")
-			}
-			if cell.value == 0 {
-				fmt.Print("  ")
-			} else {
-				fmt.Printf("%v ", cell.value)
-			}
-		}
-		fmt.Println()
-	}
-	fmt.Println()
 }
 
 func newGame(g *Game) {
