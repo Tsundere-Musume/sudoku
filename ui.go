@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/stopwatch"
@@ -15,25 +16,25 @@ const (
 	VALID        = lipgloss.Color("#a6e3a1")
 	INVALID      = lipgloss.Color("#eb6f92")
 	NOT_EDITABLE = lipgloss.Color("#ebbcba")
-	BORDER       = lipgloss.Color("#89b4fa")
 )
+
+var base = lipgloss.NewStyle().Padding(0, 1).Foreground(TEXT).BorderForeground(borderColor)
+
+type tabID int
 
 const (
-	menu sessionState = iota
-	gameWindow
+	tabGame tabID = iota
+	tabSettings
+	tabCount
 )
 
-var base = lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1).Foreground(TEXT).BorderForeground(BORDER)
-var borderStyle = base.Foreground(BORDER)
-
-type sessionState uint
-
 type model struct {
-	game    *Game
-	playing bool
-	loaded  bool
-	spinner spinner.Model
-	b0t     *bot
+	game       *Game
+	playing    bool
+	loaded     bool
+	spinner    spinner.Model
+	currWindow tabID
+	b0t        *bot
 }
 
 func (m model) Init() tea.Cmd {
@@ -66,6 +67,8 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			m.b0t = initBot(m.game.problemBoard, true)
 			// return m, m.b0t.move()
 			cmds = append(cmds, m.b0t.move())
+		case "tab":
+			m.currWindow = (m.currWindow + 1) % tabCount
 		default:
 			m.game.handleMove(msg.String())
 		}
@@ -110,21 +113,48 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.playing {
-		return gameView(m)
+	tabs := m.renderTabs()
+	var s string
+	switch m.currWindow {
+	case tabGame:
+		s = gameView(m)
+	case tabSettings:
+		s = ""
+	default:
+		s = ""
 	}
-	return ""
+	window := lipgloss.NewStyle().Height(lipgloss.Height(tabs) - 2).Width(60).Align(lipgloss.Center).AlignVertical(lipgloss.Center).Render(s)
+	window = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(borderColor).BorderLeft(false).Render(window)
+	return lipgloss.JoinHorizontal(lipgloss.Top, tabs, window) + "\n\n"
+}
+
+func (m model) renderTabs() string {
+	tabNames := []string{
+		"Sudoku",
+		"Settings",
+	}
+	style := lipgloss.NewStyle().Foreground(borderColor)
+	tabStyles := []string{
+		style.Render("╭") + "\n" + style.Render("│"),
+	}
+	for idx := range tabNames {
+		if idx == int(m.currWindow) {
+			tabStyles = append(tabStyles, activeTab.Render(tabNames[idx]))
+			continue
+		}
+		tabStyles = append(tabStyles, tab.Render(tabNames[idx]))
+	}
+	row := lipgloss.JoinVertical(lipgloss.Right, tabStyles...)
+	gap := tabGap.Render(strings.Repeat("\n", max(0, 30-lipgloss.Height(row)))) + "\n" + style.Render("╰")
+	row = lipgloss.JoinVertical(lipgloss.Bottom, row, gap)
+	return row
 }
 func gameView(m model) string {
 	if !m.loaded {
 		return lipgloss.JoinHorizontal(lipgloss.Center, "Loading ", m.spinner.View(), "\n\n")
 	}
 	board := m.game.playingBoard.View(m.game.r, m.game.c)
-	width := lipgloss.Width(board)
-	board = borderStyle.UnsetPadding().BorderStyle(lipgloss.NormalBorder()).Render(board)
-	board = lipgloss.JoinVertical(lipgloss.Center, "Sudoku", board, "\n\n")
-	board = lipgloss.NewStyle().Width(width * 3).Align(lipgloss.Center).Render(board)
-	board = lipgloss.JoinHorizontal(lipgloss.Left, board, m.game.timer.View())
+	board = lipgloss.JoinVertical(lipgloss.Center, "\n\nSudoku", board, "\n\n")
 	return board
 }
 
@@ -133,26 +163,26 @@ func (b Board) View(r, c int) string {
 	for x := range 9 {
 		for y := range 9 {
 			if x%3 == 0 && x != 0 && y == 0 {
-				s += borderStyle.Render("─────────┼───────────┼─────────")
+				s += borderStyle.Render("━━━━━━━━━╋━━━━━━━━━━━╋━━━━━━━━━")
 				s += "\n"
 			}
 			if y%3 == 0 && y != 0 {
-				s += borderStyle.Render("│")
+				s += borderStyle.Render("┃")
 			}
 
 			if x == r && y == c {
 				if b[x][y].value == 0 {
-					s += base.Background(NEUTRAL).Render(" ")
+					s += base.Background(active).Render(" ")
 				} else if b[x][y].editable {
-					s += base.Background(VALID).Render(fmt.Sprint(b[x][y].value))
+					s += base.Background(valid).Render(fmt.Sprint(b[x][y].value))
 				} else {
-					s += base.Background(INVALID).Render(fmt.Sprint(b[x][y].value))
+					s += base.Background(invalid).Render(fmt.Sprint(b[x][y].value))
 				}
 			} else {
 				if b[x][y].value == 0 {
 					s += base.Render(" ")
 				} else if b[x][y].editable {
-					s += base.Foreground(VALID).Render(fmt.Sprint(b[x][y].value))
+					s += base.Foreground(valid).Render(fmt.Sprint(b[x][y].value))
 				} else {
 					s += base.Foreground(NOT_EDITABLE).Render(fmt.Sprint(b[x][y].value))
 				}
@@ -162,5 +192,5 @@ func (b Board) View(r, c int) string {
 			s += "\n"
 		}
 	}
-	return s
+	return boardBorder.Render(s)
 }

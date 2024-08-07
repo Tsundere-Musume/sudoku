@@ -26,9 +26,10 @@ func main() {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	m := model{
-		game:    game,
-		playing: true,
-		spinner: s,
+		game:       game,
+		playing:    true,
+		spinner:    s,
+		currWindow: tabGame,
 	}
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
