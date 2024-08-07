@@ -18,8 +18,15 @@ const (
 	BORDER       = lipgloss.Color("#89b4fa")
 )
 
+const (
+	menu sessionState = iota
+	gameWindow
+)
+
 var base = lipgloss.NewStyle().PaddingLeft(1).PaddingRight(1).Foreground(TEXT).BorderForeground(BORDER)
 var borderStyle = base.Foreground(BORDER)
+
+type sessionState uint
 
 type model struct {
 	game    *Game

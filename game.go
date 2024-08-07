@@ -12,7 +12,6 @@ type Game struct {
 	problemBoard Board //WARN: don't like how there are three boards for one game
 	solvedBoard  Board
 	timer        stopwatch.Model
-	started      bool
 	loaded       chan struct{}
 	r, c         int
 }
@@ -201,6 +200,6 @@ func (b *Board) show() {
 func newGame(g *Game) {
 	g.solvedBoard.fill()
 	g.playingBoard = g.solvedBoard.copy()
-	g.playingBoard.removeElements(20)
+	g.playingBoard.removeElements(53)
 	g.problemBoard = g.playingBoard.copy()
 }
