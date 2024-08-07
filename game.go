@@ -14,6 +14,7 @@ type Game struct {
 	timer        stopwatch.Model
 	loaded       chan struct{}
 	r, c         int
+	options      *settingsModel
 }
 
 type Board [9][9]Cell
@@ -200,6 +201,17 @@ func (b *Board) show() {
 func newGame(g *Game) {
 	g.solvedBoard.fill()
 	g.playingBoard = g.solvedBoard.copy()
-	g.playingBoard.removeElements(53)
+	var num int
+	switch g.options.settings.Difficulty {
+	case easy:
+		num = 30
+	case medium:
+		num = 40
+	case hard:
+		num = 50
+	default:
+		num = 40
+	}
+	g.playingBoard.removeElements(num)
 	g.problemBoard = g.playingBoard.copy()
 }

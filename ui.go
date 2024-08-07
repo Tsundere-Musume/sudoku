@@ -10,16 +10,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const (
-	TEXT         = lipgloss.Color("#313244")
-	NEUTRAL      = lipgloss.Color("#bac2de")
-	VALID        = lipgloss.Color("#a6e3a1")
-	INVALID      = lipgloss.Color("#eb6f92")
-	NOT_EDITABLE = lipgloss.Color("#ebbcba")
-)
-
-var base = lipgloss.NewStyle().Padding(0, 1).Foreground(TEXT).BorderForeground(borderColor)
-
 type tabID int
 
 const (
@@ -47,11 +37,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k == "q" || k == "ctrl+c" {
 			return m, tea.Quit
 		}
+		if k == "tab" {
+			m.currWindow = (m.currWindow + 1) % tabCount
+		}
 	}
-	if m.playing {
-		return updateGame(msg, m)
-	}
-	return m, nil
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+	mod, cmd := updateGame(msg, m)
+	cmds = append(cmds, cmd)
+	m = mod.(model)
+	mod, cmd = updateSettings(msg, m)
+	cmds = append(cmds, cmd)
+	return mod, tea.Batch(cmds...)
 }
 
 func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
@@ -59,16 +56,17 @@ func updateGame(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.b0t != nil {
+		if m.b0t != nil || m.currWindow != tabGame {
 			break
 		}
 		switch msg.String() {
 		case "a":
+			if !m.loaded {
+				break
+			}
 			m.b0t = initBot(m.game.problemBoard, true)
 			// return m, m.b0t.move()
 			cmds = append(cmds, m.b0t.move())
-		case "tab":
-			m.currWindow = (m.currWindow + 1) % tabCount
 		default:
 			m.game.handleMove(msg.String())
 		}
@@ -119,7 +117,7 @@ func (m model) View() string {
 	case tabGame:
 		s = gameView(m)
 	case tabSettings:
-		s = ""
+		s = m.game.options.View()
 	default:
 		s = ""
 	}

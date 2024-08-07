@@ -14,9 +14,15 @@ import (
 // TODO: ADD DEBUG
 
 func main() {
+	options, err := parseSettings("./settings.json")
+	if err != nil {
+		fmt.Println(err)
+		options = &settings{}
+	}
 	game := &Game{
-		loaded: make(chan struct{}, 1),
-		timer:  stopwatch.NewWithInterval(time.Millisecond),
+		loaded:  make(chan struct{}, 1),
+		timer:   stopwatch.NewWithInterval(time.Millisecond),
+		options: &settingsModel{settings: options},
 	}
 	go func() {
 		newGame(game)
