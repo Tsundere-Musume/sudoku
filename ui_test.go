@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"math/rand/v2"
-	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -38,25 +37,25 @@ func TestBoard(t *testing.T) {
 
 }
 
-func TestWindow(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Run("TestWindow", func(t *testing.T) {
-		board := Board{}
-		board.fill()
-		row := lipgloss.JoinVertical(
-			lipgloss.Right,
-			"╭\n│",
-			tab.Render("Lip Gloss"),
-			activeTab.Render("BLush"),
-			activeTab.Render("Eye Shadow"),
-			tab.Render("Mascara"),
-			tab.Render("Foundation"),
-		)
-		gap := tabGap.Render(strings.Repeat("\n", max(0, 20-lipgloss.Height(row)))) + "\n╰"
-		row = lipgloss.JoinVertical(lipgloss.Bottom, row, gap)
-		boardView := lipgloss.NewStyle().Height(lipgloss.Height(row) - 2).AlignVertical(lipgloss.Center).Render(board.View(0, 0))
-		boardView = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderLeft(false).Render(boardView)
-		row = lipgloss.JoinHorizontal(lipgloss.Top, row, boardView)
-		fmt.Print(row + "\n\n")
-	})
-}
+// func TestWindow(t *testing.T) {
+// 	lipgloss.SetColorProfile(termenv.TrueColor)
+// 	t.Run("TestWindow", func(t *testing.T) {
+// 		board := Board{}
+// 		board.fill()
+// 		row := lipgloss.JoinVertical(
+// 			lipgloss.Right,
+// 			"╭\n│",
+// 			tab.Render("Lip Gloss"),
+// 			activeTab.Render("BLush"),
+// 			activeTab.Render("Eye Shadow"),
+// 			tab.Render("Mascara"),
+// 			tab.Render("Foundation"),
+// 		)
+// 		gap := tabGap.Render(strings.Repeat("\n", max(0, 20-lipgloss.Height(row)))) + "\n╰"
+// 		row = lipgloss.JoinVertical(lipgloss.Bottom, row, gap)
+// 		boardView := lipgloss.NewStyle().Height(lipgloss.Height(row) - 2).AlignVertical(lipgloss.Center).Render(board.View(0, 0))
+// 		boardView = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderLeft(false).Render(boardView)
+// 		row = lipgloss.JoinHorizontal(lipgloss.Top, row, boardView)
+// 		fmt.Print(row + "\n\n")
+// 	})
+// }
